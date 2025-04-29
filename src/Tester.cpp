@@ -1,4 +1,7 @@
+#include <format>
+
 #include "Tester.h"
+#include "FiniteAutomaton.h"
 
 void Tester::makeTests(const std::string& filename) {
     std::ifstream file(filename);
@@ -21,19 +24,10 @@ void Tester::makeTests(const std::string& filename) {
 
         tests[entry["name"]] = test;
     }
-
-    for (const auto& [name, test] : this->tests) {
-        std::cout << "Test name: " << name << "\n";
-        std::cout << "Regex: " << test.regex << "\n";
-        std::cout << "Postfix: " << PostfixConverter::getPostfix(test.regex) << '\n';
-        for (const auto& [input, expected] : test.test_strings) {
-            std::cout << "  Input: " << input << ", Expected: " << (expected ? "true" : "false") << "\n";
-        }
-        std::cout << std::endl;
-    }
 }
 
 void Tester::init() {
+    const std::string testDirectory = getTestDirectory();
     for (const auto& entry : fs::directory_iterator(testDirectory)) {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().string();
@@ -43,6 +37,30 @@ void Tester::init() {
 }
 
 void Tester::run() {
-    const std::string testDirectory = getTestDirectory();
+    if (this->tests.empty()) {
+        std::cerr << "There are no tests. Use Tester::init() before run." << std::endl;
+    }
+    else {
+        for (const auto& [name, test] : this->tests) {
+            std::string postfix = PostfixConverter::getPostfix(test.regex);
+            FiniteAutomaton regexParser;
+            regexParser.buildFromRegex(postfix);
+
+            std::cout << "Test name: " << name << std::endl;
+            std::cout << "Regex: " << test.regex << std::endl;
+            std::cout << std::format("\033[34mPostfix: {}\033[0m", postfix) << std::endl;
+            for (const auto& [input, expected] : test.test_strings) {
+                auto result = false;
+                //const bool result =
+                if (result == expected) {
+                    std::cout << std::format("\033[32mInput: {} | Exptected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
+                } else {
+                    std::cout << std::format("\033[31mInput: {} | Exptected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+
     clearTests();
 }
