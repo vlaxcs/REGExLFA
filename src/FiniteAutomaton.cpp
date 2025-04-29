@@ -1,3 +1,4 @@
+#include <cassert>
 #include <sstream>
 
 #include <FiniteAutomaton.h>
@@ -6,7 +7,9 @@
 #include <Setup.h>
 #include <RegToken.h>
 #include <StateAssembler.h>
-
+#include <queue>
+#include <unordered_map>
+#include <map>
 
 FiniteAutomaton::FiniteAutomaton(const std::string &file) {
     const Setup setup(file);
@@ -14,6 +17,47 @@ FiniteAutomaton::FiniteAutomaton(const std::string &file) {
     setStates(setup.getStates());
     setTransitions(setup.getTransitions());
     setStartState();
+}
+
+std::ostream &operator<<(std::ostream &os, const FiniteAutomaton &fa) {
+    if (fa.isNondeterministic()) {
+        std::cout << "> NFA" << std::endl;
+    }
+    else {
+        std::cout << "> DFA" << std::endl;
+    }
+
+    os << "> Sigma: {";
+    bool first = true;
+    for (const char &c: fa.sigma) {
+        if (!first) os << ", ";
+        os << "'" << c << "'";
+        first = false;
+    }
+    os << "}\n";
+
+    first = true;
+    os << "> States: {";
+    for (const auto &state: fa.states) {
+        if (!first) os << ", ";
+        os << "'" << state->name << "'";
+        first = false;
+    }
+    os << "}\n";
+
+    os << "> State Map:\n";
+    for (const auto &[name, state]: fa.stateMap) {
+        os << "  \"" << name << "\": " << state->name << "\n";
+    }
+
+    os << "\nStart State: ";
+    if (fa.startState) {
+        os << fa.startState->name;
+    } else {
+        os << "nullptr";
+    }
+
+    return os;
 }
 
 bool FiniteAutomaton::inSigma(const char &symbol) const {
@@ -70,6 +114,10 @@ void FiniteAutomaton::setStates(const std::vector<std::string> &stateLines) {
     }
 }
 
+void FiniteAutomaton::setSigma(const std::unordered_set<char> &sigma) {
+    this->sigma = sigma;
+}
+
 void FiniteAutomaton::setTransitions(std::vector<std::string> const &transitions) {
     for (const auto &line: transitions) {
         std::istringstream iss(line);
@@ -113,9 +161,9 @@ void FiniteAutomaton::setStartState() {
     }
 }
 
-bool FiniteAutomaton::isNondeterministic() {
-    for (const auto &state: states) {
-        for (const auto &symbol: sigma) {
+bool FiniteAutomaton::isNondeterministic() const {
+    for (const auto &state: this->states) {
+        for (const auto &symbol: this->sigma) {
             auto [from, with] = state->transitions.equal_range(symbol);
             if (const size_t count = std::distance(from, with); count > 1) return true;
         }
@@ -123,26 +171,29 @@ bool FiniteAutomaton::isNondeterministic() {
     return false;
 }
 
-
-void FiniteAutomaton::DFS(std::shared_ptr<StateNode> origin,
-         const std::function<void(std::shared_ptr<StateNode>)>& action,
-         const std::function<bool(const std::pair<std::shared_ptr<StateNode>, std::optional<char>>&)>& validate)
-{
+void FiniteAutomaton::DFS(
+    const std::shared_ptr<StateNode> &origin,
+    const std::function<void(std::shared_ptr<StateNode>)> &action,
+    const std::function<bool(const std::pair<std::shared_ptr<StateNode>, std::optional<char> > &)> &validate) {
     std::unordered_set<int> visited;
-    std::stack<std::shared_ptr<StateNode>> toExplore;
+    std::stack<std::shared_ptr<StateNode> > toExplore;
 
+    if (!origin) return;
     toExplore.push(origin);
 
     while (!toExplore.empty()) {
-        auto node = toExplore.top();
+        const auto node = toExplore.top();
         toExplore.pop();
 
-        if (visited.contains(node->id)) continue;
+        if (!node || visited.contains(node->id)) continue;
+
         visited.insert(node->id);
         action(node);
 
-        for (const auto& [target, symbol] : node->connections) {
-            std::optional<char> optSymbol = symbol == '\0' ? std::nullopt : std::optional<char>(symbol);
+        for (const auto &[target, symbol]: node->connections) {
+            if (!target) continue;
+
+            std::optional<char> optSymbol = (symbol == '\0') ? std::nullopt : std::optional<char>(symbol);
             if (!visited.contains(target->id) && validate({target, optSymbol})) {
                 toExplore.push(target);
             }
@@ -150,31 +201,31 @@ void FiniteAutomaton::DFS(std::shared_ptr<StateNode> origin,
     }
 }
 
-std::vector<StateCluster> FiniteAutomaton::LambdaScope(const std::vector<std::shared_ptr<StateNode>>& nodes) {
-    std::vector<StateCluster> compositeStates;
-    compositeStates.reserve(nodes.size());
+std::vector<StateCluster> FiniteAutomaton::LambdaScope(const std::vector<std::shared_ptr<StateNode> > &nodes) {
+    std::vector<StateCluster> cluster_states;
+    cluster_states.reserve(nodes.size());
 
-    for (const auto& node : nodes) {
+    for (const auto &node: nodes) {
         StateAssembler builder;
 
         DFS(node,
-              [&](const std::shared_ptr<StateNode>& current) {
-                  builder.appendState(current);
-              },
-              [](const std::pair<std::shared_ptr<StateNode>, std::optional<char>>& connection) {
-                  return connection.second == '\0';
-              });
+            [&](const std::shared_ptr<StateNode> &current) {
+                builder.appendState(current);
+            },
+            [](const std::pair<std::shared_ptr<StateNode>, std::optional<char> > &connection) {
+                return !connection.second.has_value();
+            });
 
-        compositeStates.push_back(builder.build());
+        cluster_states.push_back(builder.build());
     }
 
-    return compositeStates;
+    return cluster_states;
 }
 
-std::unordered_set<char> FiniteAutomaton::extractSigmaFromRegex(const std::string& postfix) {
+std::unordered_set<char> FiniteAutomaton::extractSigmaFromRegex(const std::string &postfix) {
     std::unordered_set<char> result;
     const std::unordered_set<char> symbols = {'+', '|', '(', ')', '?', '.', '*'};
-    for (auto c : postfix) {
+    for (auto c: postfix) {
         if (symbols.contains(c)) {
             continue;
         }
@@ -184,9 +235,9 @@ std::unordered_set<char> FiniteAutomaton::extractSigmaFromRegex(const std::strin
 }
 
 
-static void PrintTokenHierarchy(const std::shared_ptr<RegToken>& token) {
+static void showTokenization(const std::shared_ptr<RegToken> &token) {
     std::unordered_set<int> visited;
-    std::stack<std::pair<std::shared_ptr<StateNode>, int>> toExplore;
+    std::stack<std::pair<std::shared_ptr<StateNode>, int> > toExplore;
 
     toExplore.emplace(token->startNode, 0);
 
@@ -197,11 +248,14 @@ static void PrintTokenHierarchy(const std::shared_ptr<RegToken>& token) {
         if (!node || visited.contains(node->id)) continue;
         visited.insert(node->id);
 
-        for (const auto& [otherNode, symbol] : node->connections) {
-            std::string indentStr(indent * 4, ' ');
-            std::cout << indentStr << node->toString()
-                      << "--" << (symbol == '\0' ? 'L' : symbol)
-                      << "--> " << otherNode->toString() << "\n";
+        for (const auto &[otherNode, symbol]: node->connections) {
+            std::string indentStr(indent, ' ');
+            std::cout << std::format("{} {} - {} > {}",
+                                     indentStr,
+                                     node->toString(),
+                                     symbol == '\0' ? 'L' : symbol,
+                                     otherNode->toString()
+            ) << std::endl;
 
             if (!visited.contains(otherNode->id)) {
                 toExplore.emplace(otherNode, indent + 1);
@@ -209,48 +263,125 @@ static void PrintTokenHierarchy(const std::shared_ptr<RegToken>& token) {
         }
     }
 }
-/*
-*static void PrintTokenHierarchy(Token token) {
-HashSet<AutomatonNode> visited = new();
-Stack<(AutomatonNode, int)> toExplore = new();
 
-toExplore.Push((token.startNode, 0));
+FiniteAutomaton *FiniteAutomaton::buildFromRegex(const std::string &postfix) {
+    auto temp = new FiniteAutomaton();
+    temp->setSigma(extractSigmaFromRegex(postfix));
 
-while(toExplore.Count > 0) {
-(var node, var indent)= toExplore.Pop();
-visited.Add(node);
+    int node_count = 0;
+    auto postfix_token = RegToken::getENFAToken(postfix, node_count);
+    std::vector<std::shared_ptr<StateNode> > nodes(node_count);
 
-foreach(var connection in node.connections) {
-var otherNode = connection.Item1;
+    showTokenization(postfix_token);
 
-Console.WriteLine($"{new string(' ', indent * 4)}{node}--{(connection.Item2 == null ? 'L' : connection.Item2)}-->{otherNode}");
-
-if(visited.Contains(otherNode)) continue;
-toExplore.Push((otherNode, indent + 1));
-}
-}
-*/
-
-FiniteAutomaton* FiniteAutomaton::buildFromRegex(const std::string& postfix) {
-    sigma = extractSigmaFromRegex(postfix);
-
-    int node_count;
-    const std::shared_ptr<RegToken> automataToken = RegToken::getENFAToken(postfix, node_count);
-    std::vector<std::shared_ptr<StateNode>> nodes(node_count);
-
-    PrintTokenHierarchy(automataToken);
-
-    DFS(automataToken->startNode,
-        [&](const std::shared_ptr<StateNode>& current) {
+    DFS(postfix_token->startNode,
+        [&](const std::shared_ptr<StateNode> &current) {
             nodes[current->id] = current;
         },
-        [](const std::pair<std::shared_ptr<StateNode>, std::optional<char>>&) {
+        [](const std::pair<std::shared_ptr<StateNode>, std::optional<char> > &) {
             return true;
         });
 
-//  std::vector<StateCluster> compositeStates = LambdaClosure(nodes);
+    std::vector<StateCluster> cluster_states = LambdaScope(nodes);
+    std::vector<std::vector<StateCluster> > expansion_table(
+        node_count, std::vector<StateCluster>(temp->getSigma().size()));
+    std::vector<char> sigma_vec(temp->getSigma().begin(), temp->getSigma().end());
 
-    return nullptr;
+    for (int i = 0; i < node_count; ++i) {
+        const auto &current = cluster_states[i];
+
+        for (size_t j = 0; j < sigma_vec.size(); ++j) {
+            char symbol = sigma_vec[j];
+            StateCluster step = current.stepWith(symbol, nodes);
+            StateCluster result;
+
+            for (const auto &state: step.getStates()) {
+                result = result.unionize(cluster_states[state->id]);
+            }
+
+            expansion_table[i][j] = result;
+        }
+    }
+
+    std::map<StateCluster, int> transition_indices;
+    transition_indices[cluster_states[postfix_token->startNode->id]] = 0;
+
+    std::vector<std::vector<int> > transition_rules;
+    std::queue<StateCluster> q;
+    q.push(cluster_states[postfix_token->startNode->id]);
+
+    while (!q.empty()) {
+        StateCluster current = q.front();
+        q.pop();
+
+        std::vector<int> row(sigma_vec.size(), -1);
+        int current_index = static_cast<int>(transition_rules.size());
+        transition_rules.push_back(row);
+
+        for (size_t i = 0; i < sigma_vec.size(); ++i) {
+            StateCluster result;
+            for (const auto &state: current.getStates()) {
+                result = result.unionize(expansion_table[state->id][i]);
+            }
+
+            if (result.isEmpty()) continue;
+
+            if (!transition_indices.contains(result)) {
+                int new_index = static_cast<int>(transition_rules.size() + q.size());
+                transition_indices[result] = new_index;
+                q.push(result);
+            }
+
+            transition_rules[current_index][i] = transition_indices[result];
+        }
+    }
+
+    std::vector<std::shared_ptr<State>> fa_states(transition_rules.size());
+    for (size_t i = 0; i < fa_states.size(); ++i) {
+        auto state = std::make_shared<State>();
+        state->name = "q" + std::to_string(i);
+        state->initial = (i == 0);
+        // temp->stateMap[state->name] = state;
+        fa_states[i] = state;
+    }
+
+    for (size_t from = 0; from < transition_rules.size(); ++from) {
+        for (size_t j = 0; j < sigma_vec.size(); ++j) {
+            if (int to = transition_rules[from][j]; to != -1) {
+                fa_states[from]->transitions.emplace(sigma_vec[j], fa_states[to]);
+            }
+        }
+    }
+
+    for (const auto &[cluster, index]: transition_indices) {
+        if (cluster.containsState(postfix_token->endNode)) {
+            fa_states[index]->final = true;
+        }
+    }
+
+    temp->states = fa_states;
+    temp->startState = fa_states[0];
+
+    return temp;
+}
+
+bool FiniteAutomaton::process(const std::string& word) const {
+    auto currentState = startState;
+    assert(currentState != nullptr);
+
+    if (word.empty()) {
+        return currentState->final;
+    }
+
+    for (const auto &symbol : word) {
+        auto transitionsWithSymbol = currentState->transitions.equal_range(symbol);
+        if (transitionsWithSymbol.first == transitionsWithSymbol.second) {
+            return false;
+        }
+        currentState = transitionsWithSymbol.first->second;
+    }
+
+    return currentState->final;
 }
 
 // To implement (Optional)
@@ -258,7 +389,6 @@ FiniteAutomaton* FiniteAutomaton::buildFromRegex(const std::string& postfix) {
 //     if (!isNondeterministic()) {
 //         return nullptr;
 //     }
-//
 //
 //     return nullptr;
 // }

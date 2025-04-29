@@ -14,7 +14,7 @@
 class FiniteAutomaton {
 protected:
     std::unordered_set<char> sigma;
-    std::vector<std::shared_ptr<State> > states;
+    std::vector<std::shared_ptr<State>> states;
     std::unordered_map<std::string, std::shared_ptr<State> > stateMap;
     std::shared_ptr<State> startState = nullptr;
 
@@ -30,37 +30,32 @@ protected:
 
     explicit FiniteAutomaton(const std::string &file);
 
-    //FiniteAutomaton* getMinimizedVersion();
-
     static std::unordered_set<char> extractSigmaFromRegex(const std::string& postfix);
+
+    //FiniteAutomaton* getMinimizedVersion();
 
 public:
     FiniteAutomaton() = default;
 
-    bool isNondeterministic();
+    bool isNondeterministic() const;
 
     static void DFS(
-    std::shared_ptr<StateNode> origin,
+    const std::shared_ptr<StateNode>& origin,
          const std::function<void(std::shared_ptr<StateNode>)>& action,
          const std::function<bool(const std::pair<std::shared_ptr<StateNode>, std::optional<char>>&)>& validate);
 
-    std::vector<StateCluster> LambdaScope(const std::vector<std::shared_ptr<StateNode>>& nodes);
-    //std::vector<StateCluster> LambdaScope(std::vector<StateNode>);
-    FiniteAutomaton* buildFromRegex(const std::string& postfix);
+    static std::vector<StateCluster> LambdaScope(const std::vector<std::shared_ptr<StateNode>>& nodes);
+    static FiniteAutomaton* buildFromRegex(const std::string& postfix);
 
+    void setSigma(const std::unordered_set<char> &sigma);
+    std::unordered_set<char> getSigma(){
+        return this->sigma;
+    };
+
+
+    bool process(const std::string& word) const;
+
+    friend std::ostream& operator<<(std::ostream& os, const FiniteAutomaton& fa);
 
     ~FiniteAutomaton() = default;
 };
-
-#include "StateNode.h"
-
-// class RegToken {
-// private:
-//     StateNode start, end;
-//
-// public:
-//     RegToken(const StateNode &_start, const StateNode &_end): start(_start), end(_end) {};
-//     RegToken(char c, int id) : start(new StateNode(id++)), end(new StateNode(id)) {};
-//
-//
-// };

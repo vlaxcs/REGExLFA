@@ -43,19 +43,17 @@ void Tester::run() {
     else {
         for (const auto& [name, test] : this->tests) {
             std::string postfix = PostfixConverter::getPostfix(test.regex);
-            FiniteAutomaton regexParser;
-            regexParser.buildFromRegex(postfix);
+            FiniteAutomaton* regexParser(FiniteAutomaton::buildFromRegex(postfix));
+            std::cout << *regexParser;
 
             std::cout << "Test name: " << name << std::endl;
             std::cout << "Regex: " << test.regex << std::endl;
             std::cout << std::format("\033[34mPostfix: {}\033[0m", postfix) << std::endl;
             for (const auto& [input, expected] : test.test_strings) {
-                auto result = false;
-                //const bool result =
-                if (result == expected) {
-                    std::cout << std::format("\033[32mInput: {} | Exptected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
+                if (const auto result = regexParser->process(postfix); result == expected) {
+                    std::cout << std::format("\033[32mInput: {} | Expected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
                 } else {
-                    std::cout << std::format("\033[31mInput: {} | Exptected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
+                    std::cout << std::format("\033[31mInput: {} | Expected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
                 }
             }
             std::cout << std::endl;
