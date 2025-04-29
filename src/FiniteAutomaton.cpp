@@ -45,16 +45,37 @@ std::ostream &operator<<(std::ostream &os, const FiniteAutomaton &fa) {
     }
     os << "}\n";
 
-    os << "> State Map:\n";
-    for (const auto &[name, state]: fa.stateMap) {
-        os << "  \"" << name << "\": " << state->name << "\n";
+    first = true;
+    os << "> Final states: {";
+    for (const auto &state: fa.states) {
+        if (state->final) {
+            if (!first) os << ", ";
+            os << "'" << state->name << "'";
+            first = false;
+        }
     }
+    os << "}\n";
 
-    os << "\nStart State: ";
+    os << "> Start State: ";
     if (fa.startState) {
         os << fa.startState->name;
     } else {
         os << "nullptr";
+    }
+    os << std::endl;
+
+    os << "> State Map:\n";
+    for (const auto& state : fa.states) {
+        std::cout << std::format(">> {}:\n", state->name);
+        for (auto letter : fa.sigma) {
+            auto [fst, snd] = state->transitions.equal_range(letter);
+            if (fst == snd) {
+                std::cout << std::format(">>> [With <{}> - NO_MOVE])\n", letter);
+            } else {
+                std::cout << std::format(">>> [With <{}> > To <{}>]\n", fst->first, fst->second->name);
+            }
+        }
+        std::cout << std::endl;
     }
 
     return os;
@@ -285,7 +306,9 @@ FiniteAutomaton *FiniteAutomaton::buildFromRegex(const std::string &postfix) {
     std::vector<StateCluster> cluster_states = LambdaScope(nodes);
     std::vector<std::vector<StateCluster> > expansion_table(
         node_count, std::vector<StateCluster>(temp->getSigma().size()));
+
     std::vector<char> sigma_vec(temp->getSigma().begin(), temp->getSigma().end());
+    std::sort(sigma_vec.begin(), sigma_vec.end());
 
     for (int i = 0; i < node_count; ++i) {
         const auto &current = cluster_states[i];
@@ -376,6 +399,7 @@ bool FiniteAutomaton::process(const std::string& word) const {
     for (const auto &symbol : word) {
         auto transitionsWithSymbol = currentState->transitions.equal_range(symbol);
         if (transitionsWithSymbol.first == transitionsWithSymbol.second) {
+            std::cout << "There is no state leading from " << symbol << std::endl;
             return false;
         }
         currentState = transitionsWithSymbol.first->second;
