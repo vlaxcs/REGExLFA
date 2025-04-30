@@ -51,18 +51,7 @@ public:
         return state_ids < other.state_ids;
     }
 
-    [[nodiscard]] std::string toString() const {
-        std::ostringstream oss;
-        oss << "{";
-        bool first = true;
-        for (const auto& state : states) {
-            if (!first) oss << ",";
-            oss << state->toString();
-            first = false;
-        }
-        oss << "}";
-        return oss.str();
-    }
+    [[nodiscard]] std::string toString() const;
 
     [[nodiscard]] auto begin() const { return states.begin(); }
     [[nodiscard]] auto end() const { return states.end(); }
@@ -71,18 +60,5 @@ public:
         return states.empty();
     }
 
-    [[nodiscard]] StateCluster stepWith(const char symbol, const std::vector<std::shared_ptr<StateNode>>& id_map) const {
-        std::vector<std::shared_ptr<StateNode>> result;
-
-        for (int id : state_ids) {
-            auto& node = id_map[id];
-            for (const auto& [target, transition_symbol] : node->connections) {
-                if (transition_symbol == symbol) {
-                    result.push_back(target);
-                }
-            }
-        }
-
-        return StateCluster(result);
-    }
+    [[nodiscard]] StateCluster stepWith(char symbol, const std::vector<std::shared_ptr<StateNode>>& id_map) const;
 };

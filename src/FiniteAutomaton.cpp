@@ -399,7 +399,6 @@ bool FiniteAutomaton::process(const std::string& word) const {
     for (const auto &symbol : word) {
         auto transitionsWithSymbol = currentState->transitions.equal_range(symbol);
         if (transitionsWithSymbol.first == transitionsWithSymbol.second) {
-            std::cout << "There is no state leading from " << symbol << std::endl;
             return false;
         }
         currentState = transitionsWithSymbol.first->second;

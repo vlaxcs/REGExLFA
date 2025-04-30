@@ -2,7 +2,8 @@
 
 using namespace std;
 int main() {
-    Tester tester;
-    tester.init();
-    tester.run();
+
+    Tester &app = Tester::getInstance();
+    app.init();
+    app.run();
 }

@@ -2,6 +2,16 @@
 
 #include <stack>
 
+bool PostfixConverter::isUnary(const char c) {
+    const std::unordered_set<char> unaryOperators = {'?', '*', '+'};
+    return unaryOperators.contains(c);
+}
+
+bool PostfixConverter::isSymbol(const char c) {
+    const std::unordered_set<char> symbols = {'+', '|', '(', ')', '?', '.', '*'};
+    return !symbols.contains(c);
+}
+
 std::string PostfixConverter::add_concat_symbols(const std::string& expression){
     std::string result;
 

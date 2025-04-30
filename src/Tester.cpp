@@ -3,7 +3,7 @@
 #include "Tester.h"
 #include "FiniteAutomaton.h"
 
-void Tester::makeTests(const std::string& filename) {
+void Tester::makeTests(const std::string &filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file " << filename << std::endl;
@@ -14,11 +14,11 @@ void Tester::makeTests(const std::string& filename) {
     file >> testData;
     file.close();
 
-    for (const auto& entry : testData) {
+    for (const auto &entry: testData) {
         Test test;
         test.regex = entry["regex"];
 
-        for (const auto& test_case : entry["test_strings"]) {
+        for (const auto &test_case: entry["test_strings"]) {
             test.test_strings.emplace_back(test_case["input"], test_case["expected"]);
         }
 
@@ -28,7 +28,7 @@ void Tester::makeTests(const std::string& filename) {
 
 void Tester::init() {
     const std::string testDirectory = getTestDirectory();
-    for (const auto& entry : fs::directory_iterator(testDirectory)) {
+    for (const auto &entry: fs::directory_iterator(testDirectory)) {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().string();
             makeTests(filename);
@@ -39,9 +39,8 @@ void Tester::init() {
 void Tester::run() {
     if (this->tests.empty()) {
         std::cerr << "There are no tests. Use Tester::init() before run." << std::endl;
-    }
-    else {
-        for (const auto& [name, test] : this->tests) {
+    } else {
+        for (const auto &[name, test]: this->tests) {
             std::cout << std::string(80, '_') << '\n';
             std::string postfix = PostfixConverter::getPostfix(test.regex);
 
@@ -49,16 +48,18 @@ void Tester::run() {
             std::cout << "Regex: " << test.regex << std::endl;
             std::cout << std::format("\033[34mPostfix: {}", postfix) << std::endl;
 
-            const FiniteAutomaton* regexParser(FiniteAutomaton::buildFromRegex(postfix));
+            const FiniteAutomaton *regexParser(FiniteAutomaton::buildFromRegex(postfix));
             std::cout << *regexParser;
 
             std::cout << "\033[0m";
 
-            for (const auto& [input, expected] : test.test_strings) {
+            for (const auto &[input, expected]: test.test_strings) {
                 if (const auto result = regexParser->process(input); result == expected) {
-                    std::cout << std::format("\033[32mInput: {} | Expected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
+                    std::cout << std::format("\033[32mInput: {} | Expected: {} | Result: {} \033[0m", input,
+                                             (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
                 } else {
-                    std::cout << std::format("\033[31mInput: {} | Expected: {} | Result: {} \033[0m", input, (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
+                    std::cout << std::format("\033[31mInput: {} | Expected: {} | Result: {} \033[0m", input,
+                                             (expected ? "true" : "false"), (result ? "true" : "false")) << std::endl;
                 }
             }
             std::cout << std::endl;
@@ -66,4 +67,12 @@ void Tester::run() {
     }
 
     clearTests();
+}
+
+std::string Tester::getTestDirectory() {
+    return testDirectory;
+}
+
+void Tester::clearTests() {
+    tests.clear();
 }

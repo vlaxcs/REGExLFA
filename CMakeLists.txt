@@ -5,10 +5,12 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(REGExLFA main.cpp
             src/StateAssembler.cpp
+            src/StateCluster.cpp
             src/PostfixConverter.cpp
+            src/RegToken.cpp
+            src/FiniteAutomaton.cpp
             src/Tester.cpp
             src/UserWarn.cpp
-            src/FiniteAutomaton.cpp
             src/Setup.cpp)
 
 include(FetchContent)

@@ -22,14 +22,21 @@ target_link_libraries(REGExLFA PRIVATE nlohmann_json::nlohmann_json)
 
 <hr>
 
-- [x] Testarea programului folosind fișiere JSON
+- Testarea programului folosind fișiere JSON
     - Clasa <code>tester.cpp</code> inițializează și rulează aceste teste (soon to be a singleton appObject).
-        - <code>init()</code>: Obține datele despre testele existente în toate fișierele JSON din directorul <code>REGExLFA/tests</code>
-        - <code>run()</code>: Accesează datele obținute despre fiecare test și compară rezultatele programului cu cele așteptate. Furnizează rezultatul comparației, iar la final șterge toate testele rulate.
-- [x] Convertor de expresii regulate în notație postfixată
+        - <code>init()</code>: Obține datele despre testele existente în toate fișierele JSON din directorul <code>REGExLFA/tests</code>. Locația acestui director este un atribut privat al clasei <code>Tester</code> și poate fi schimbată din cod.
+        - <code>run()</code>: Accesează datele obținute despre fiecare test (stocate într-un unordered_map) și compară rezultatele programului cu cele așteptate. Furnizează rezultatul comparației, iar la final șterge toate testele rulate.
+- Convertor de expresii regulate în notație postfixată
   - Clasa <code>PostfixConverter</code> pune la dispoziție <code>getPostfix(expresie))</code>, prin care se obține o conversie de la forma la infix la postfix.
-    - La forma infix a expresiei regulate se adaugă simbolurile de concatenare.
-    - Ulterior acestei modificări, se obține forma postfixată, calculată prin intermediul algoritmului lui Shunting-Yard).
-- [ ] Construcția NFA prin algoritmul lui Thompson, folosind postfix
-- [ ] Conversia NFA -> DFA prin subset construction
-- [ ] Simulant de DFA
+    - <code>add_concat_symbols</code>: La forma infix a expresiei regulate se adaugă simbolurile de concatenare, conform regulilor precizte în expresia de verificare.
+    - <code>to_postfix</code>: Ulterior aplicării simbolurilor de concatenare, din forma infix se obține forma postfixată, calculată prin intermediul algoritmului lui Shunting-Yard.
+
+- Obiectul <code>FiniteAutomaton</code> cuprinde toate caracteristicile unui automat finit, iar prin aplicarea unor particularități în metodele de procesare a expresiilor, se poate reduce la NFA / DFA.
+  - Inițializarea unui automat finit poate fi făcută în două moduri:
+    - Folosind date dintr-un fișier de configurație (Alfabetul Sigma, Stări, Tranziții, Starea inițială, Stări finale)
+    - Folosind o expresie regulată în formă postfixată
+  - Constructor:
+    - <code>FiniteAutomaton(const std::string &file)</code>
+      - Creează un automat finit pe baza configurației încărcate dintr-un fișier
+      - <code>
+        

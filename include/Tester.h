@@ -14,18 +14,25 @@ class Tester {
     std::string testDirectory = "../tests";
     std::unordered_map<std::string, Test> tests;
 
-    void makeTests(const std::string& filename);
+    void makeTests(const std::string &filename);
 
-public:
     Tester() = default;
 
-    std::string getTestDirectory() {
-        return testDirectory;
-    }
-    void clearTests() {
-        tests.clear();
+public:
+    static Tester &getInstance() {
+        static Tester instance;
+        return instance;
     }
 
+    Tester(const Tester &) = delete;
+
+    Tester &operator=(const Tester &) = delete;
+
+    std::string getTestDirectory();
+
+    void clearTests();
+
     void init();
+
     void run();
 };

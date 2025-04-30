@@ -32,12 +32,12 @@ protected:
 
     static std::unordered_set<char> extractSigmaFromRegex(const std::string& postfix);
 
+    bool isNondeterministic() const;
+
     //FiniteAutomaton* getMinimizedVersion();
 
 public:
     FiniteAutomaton() = default;
-
-    bool isNondeterministic() const;
 
     static void DFS(
     const std::shared_ptr<StateNode>& origin,
@@ -51,7 +51,6 @@ public:
     std::unordered_set<char> getSigma(){
         return this->sigma;
     };
-
 
     bool process(const std::string& word) const;
 
